@@ -189,3 +189,70 @@ app.post("/post", function (req, res) {
 });
 
 });
+
+/**
+ * DELETE endpoint: Clear all data from the system.
+ * This removes all products, transactions, customers, categories, and suppliers.
+ * Settings and users are preserved.
+ *
+ * @param {Object} req request object.
+ * @param {Object} res response object.
+ * @returns {void}
+ */
+app.delete("/clear-all-data", function (req, res) {
+    const dbBasePath = path.join(appData, appName, "server", "databases");
+    
+    // List of databases to clear (excluding users and settings)
+    const dbsToClear = [
+        "products.db",
+        "transactions.db",
+        "customers.db",
+        "categories.db",
+        "suppliers.db"
+    ];
+    
+    let errors = [];
+    let cleared = 0;
+    
+    dbsToClear.forEach(dbFile => {
+        const dbFilePath = path.join(dbBasePath, dbFile);
+        
+        try {
+            // Check if file exists before trying to delete
+            if (fs.existsSync(dbFilePath)) {
+                fs.unlinkSync(dbFilePath);
+                cleared++;
+            }
+        } catch (err) {
+            console.error(`Error clearing ${dbFile}:`, err);
+            errors.push(dbFile);
+        }
+    });
+    
+    // Also clear product images
+    const productImagesPath = path.join(appData, appName, "uploads", "product_image");
+    try {
+        if (fs.existsSync(productImagesPath)) {
+            const files = fs.readdirSync(productImagesPath);
+            files.forEach(file => {
+                fs.unlinkSync(path.join(productImagesPath, file));
+            });
+        }
+    } catch (err) {
+        console.error("Error clearing product images:", err);
+    }
+    
+    if (errors.length > 0) {
+        res.status(500).json({
+            error: "Partial clear",
+            message: `Failed to clear: ${errors.join(", ")}`,
+            cleared: cleared
+        });
+    } else {
+        res.json({
+            success: true,
+            message: "All data cleared successfully. Please restart the application.",
+            cleared: cleared
+        });
+    }
+});

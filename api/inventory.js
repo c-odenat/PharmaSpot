@@ -162,7 +162,9 @@ app.post("/product", function (req, res) {
         barcode: parseInt(validator.escape(req.body.barcode)),
         expirationDate: validator.escape(req.body.expirationDate),
         price: validator.escape(req.body.price),
+        costPrice: validator.escape(req.body.costPrice || "0"),
         category: validator.escape(req.body.category),
+        supplier_id: req.body.supplier_id ? parseInt(validator.escape(req.body.supplier_id)) : null,
         quantity:
             validator.escape(req.body.quantity) == ""
                 ? 0

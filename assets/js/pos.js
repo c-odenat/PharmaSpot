@@ -205,6 +205,8 @@ if (auth == undefined) {
   $.get(api + "users/user/" + user._id, function (data) {
     user = data;
     $("#loggedin-user").text(user.fullname);
+    // Update status bar username
+    $("#status-username").text(user.fullname || user.username);
   });
 
   $.get(api + "settings/get", function (data) {
@@ -264,91 +266,107 @@ if (auth == undefined) {
     }
 
     function loadProducts() {
-      $.get(api + "inventory/products", function (data) {
-        data.forEach((item) => {
-          item.price = parseFloat(item.price).toFixed(2);
-        });
+      // Add cache-busting parameter to ensure fresh data
+      $.ajax({
+        url: api + "inventory/products",
+        type: "GET",
+        cache: false,
+        success: function (data) {
+          data.forEach((item) => {
+            item.price = parseFloat(item.price).toFixed(2);
+          });
 
-        allProducts = [...data];
+          allProducts = [...data];
 
-        loadProductList();
+          loadProductList();
 
-        let delay = 0;
-        let expiredCount = 0;
-        allProducts.forEach((product) => {
-          let todayDate = moment();
-          let expiryDate = moment(product.expirationDate, DATE_FORMAT);
+          let delay = 0;
+          let expiredCount = 0;
+          let expiringProducts = [];
+          
+          allProducts.forEach((product) => {
+            let todayDate = moment();
+            let expiryDate = moment(product.expirationDate, DATE_FORMAT);
 
-          if (!isExpired(expiryDate)) {
-            const diffDays = daysToExpire(expiryDate);
+            if (!isExpired(expiryDate)) {
+              const diffDays = daysToExpire(expiryDate);
 
-            if (diffDays > 0 && diffDays <= 30) {
-              var days_noun = diffDays > 1 ? "days" : "day";
-              notiflix.Notify.warning(
-                `${product.name} has only ${diffDays} ${days_noun} left to expiry`,
+              if (diffDays > 0 && diffDays <= 30) {
+                var days_noun = diffDays > 1 ? "days" : "day";
+                // Use NotificationManager instead of notiflix
+                if (window.NotificationManager) {
+                  window.NotificationManager.add(
+                    'warning',
+                    `${product.name} has only ${diffDays} ${days_noun} left to expiry`,
+                    `expiry_${product._id}`
+                  );
+                }
+              }
+            } else {
+              expiredCount++;
+            }
+          });
+
+          //Show notification if there are any expired goods.
+          if(expiredCount>0)
+          {
+            // Use NotificationManager instead of notiflix
+            if (window.NotificationManager) {
+              window.NotificationManager.add(
+                'danger',
+                `${expiredCount} ${expiredCount > 1 ? "products" : "product"} expired. Please restock!`,
+                `expired_count_${expiredCount}`
               );
             }
-          } else {
-            expiredCount++;
           }
-        });
 
-        //Show notification if there are any expired goods.
-        if(expiredCount>0)
-        {
-           notiflix.Notify.failure(
-          `${expiredCount} ${
-            expiredCount > 0 ? "products" : "product"
-          } expired. Please restock!`,
-        );
+         
+          $("#parent").text("");
+
+          data.forEach((item) => {
+            if (!categories.includes(item.category)) {
+              categories.push(item.category);
+            }
+            let item_isExpired = isExpired(item.expirationDate);
+            let item_stockStatus = getStockStatus(item.quantity,item.minStock);
+            if(item.img==="")
+            {
+              item_img = default_item_img;
+            }
+            else
+            {
+              item_img = path.join(img_path, item.img);
+              item_img = checkFileExists(item_img) ? item_img : default_item_img;
+            }
+            
+
+            let item_info = `<div class="col-lg-2 box ${item.category}"
+                                  onclick="$(this).addToCart(${item._id}, ${
+                                    item.quantity
+                                  }, ${item.stock})">
+                              <div class="widget-panel widget-style-2 " title="${item.name}">                    
+                              <div id="image"><img src="${item_img}" id="product_img" alt=""></div>                    
+                                          <div class="text-muted m-t-5 text-center">
+                                          <div class="name" id="product_name"><span class="${
+                                            item_isExpired ? "text-danger" : ""
+                                          }">${item.name}</span></div> 
+                                          <span class="sku">${
+                                            item.barcode || item._id
+                                          }</span>
+                                          <span class="${item_stockStatus<1?'text-danger':''}"><span class="stock">STOCK </span><span class="count">${
+                                            item.stock == 1
+                                              ? item.quantity
+                                              : "N/A"
+                                          }</span></span></div>
+                                          <span class="text-success text-center"><b data-plugin="counterup">${
+                                            validator.unescape(settings.symbol) +
+                                            moneyFormat(item.price)
+                                          }</b> </span>
+                              </div>
+                          </div>`;
+            $("#parent").append(item_info);
+          });
         }
-
-       
-        $("#parent").text("");
-
-        data.forEach((item) => {
-          if (!categories.includes(item.category)) {
-            categories.push(item.category);
-          }
-          let item_isExpired = isExpired(item.expirationDate);
-          let item_stockStatus = getStockStatus(item.quantity,item.minStock);
-          if(item.img==="")
-          {
-            item_img = default_item_img;
-          }
-          else
-          {
-            item_img = path.join(img_path, item.img);
-            item_img = checkFileExists(item_img) ? item_img : default_item_img;
-          }
-          
-
-          let item_info = `<div class="col-lg-2 box ${item.category}"
-                                onclick="$(this).addToCart(${item._id}, ${
-                                  item.quantity
-                                }, ${item.stock})">
-                            <div class="widget-panel widget-style-2 " title="${item.name}">                    
-                            <div id="image"><img src="${item_img}" id="product_img" alt=""></div>                    
-                                        <div class="text-muted m-t-5 text-center">
-                                        <div class="name" id="product_name"><span class="${
-                                          item_isExpired ? "text-danger" : ""
-                                        }">${item.name}</span></div> 
-                                        <span class="sku">${
-                                          item.barcode || item._id
-                                        }</span>
-                                        <span class="${item_stockStatus<1?'text-danger':''}"><span class="stock">STOCK </span><span class="count">${
-                                          item.stock == 1
-                                            ? item.quantity
-                                            : "N/A"
-                                        }</span></span></div>
-                                        <span class="text-success text-center"><b data-plugin="counterup">${
-                                          validator.unescape(settings.symbol) +
-                                          moneyFormat(item.price)
-                                        }</b> </span>
-                            </div>
-                        </div>`;
-          $("#parent").append(item_info);
-        });
       });
     }
 
@@ -497,6 +515,7 @@ if (auth == undefined) {
         sku: data.sku,
         price: data.price,
         quantity: 1,
+        category: data.category,
       };
 
       if ($(this).isExist(item)) {
@@ -731,7 +750,7 @@ if (auth == undefined) {
           type = "Cash";
           break;
         case 3:
-          type = "Card";
+          type = "Mobile Money";
           break;
       }
 
@@ -916,14 +935,21 @@ if (auth == undefined) {
           $("#viewTransaction").html("");
           $("#viewTransaction").html(receipt);
           $("#orderModal").modal("show");
-          loadProducts();
-          loadCustomers();
+          
+          // Refresh products with cache-busting
+          setTimeout(function() {
+            loadProducts();
+            loadCustomers();
+          }, 300);
+          
           $(".loading").hide();
           $("#dueModal").modal("hide");
           $("#paymentModel").modal("hide");
-          $(this).getHoldOrders();
-          $(this).getCustomerOrders();
-          $(this).renderTable(cart);
+          
+          // Fix context for these calls
+          $.fn.getHoldOrders();
+          $.fn.getCustomerOrders();
+          $.fn.renderTable(cart);
         },
 
         error: function (data) {
@@ -1238,7 +1264,21 @@ if (auth == undefined) {
     $("#newProductModal").on("click", function () {
       $("#saveProduct").get(0).reset();
       $("#current_img").text("");
+      loadSuppliersDropdown();
     });
+
+    // Load suppliers into product dropdown
+    function loadSuppliersDropdown() {
+      $.get(api + "suppliers/all", function (data) {
+        let dropdown = $("#product_supplier");
+        dropdown.html('<option value="">Select Supplier</option>');
+        data.forEach(supplier => {
+          dropdown.append(`<option value="${supplier._id}">${validator.unescape(supplier.name)}</option>`);
+        });
+      }).fail(function() {
+        // Silently fail if suppliers API not available
+      });
+    }
 
     $("#saveProduct").submit(function (e) {
       e.preventDefault();
@@ -1763,6 +1803,68 @@ if (auth == undefined) {
       }
     });
     }
+  });
+
+  // ============================================
+  // Clear All Data Functionality
+  // ============================================
+  
+  // Open confirmation modal
+  $("#clearAllDataBtn").on("click", function() {
+    $("#clearDataConfirmInput").val("");
+    $("#confirmClearDataBtn").prop("disabled", true);
+    $("#settingsModal").modal("hide");
+    setTimeout(function() {
+      $("#clearDataModal").modal("show");
+    }, 300);
+  });
+  
+  // Enable/disable confirm button based on input
+  $("#clearDataConfirmInput").on("input", function() {
+    const value = $(this).val().trim().toUpperCase();
+    $("#confirmClearDataBtn").prop("disabled", value !== "DELETE");
+  });
+  
+  // Perform the clear operation
+  $("#confirmClearDataBtn").on("click", function() {
+    const $btn = $(this);
+    const originalText = $btn.html();
+    
+    $btn.prop("disabled", true);
+    $btn.html('<i class="fa fa-spinner fa-spin"></i> Clearing...');
+    
+    $.ajax({
+      url: api + "settings/clear-all-data",
+      method: "DELETE",
+      success: function(response) {
+        $("#clearDataModal").modal("hide");
+        
+        notiflix.Report.success(
+          "Data Cleared",
+          "All data has been cleared successfully. The application will now restart.",
+          "Restart Now",
+          function() {
+            ipcRenderer.send("app-reload", "");
+          }
+        );
+      },
+      error: function(jqXHR) {
+        $btn.prop("disabled", false);
+        $btn.html(originalText);
+        
+        notiflix.Report.failure(
+          "Error",
+          jqXHR.responseJSON ? jqXHR.responseJSON.message : "Failed to clear data. Please try again.",
+          "Ok"
+        );
+      }
+    });
+  });
+  
+  // Reset modal state when closed
+  $("#clearDataModal").on("hidden.bs.modal", function() {
+    $("#clearDataConfirmInput").val("");
+    $("#confirmClearDataBtn").prop("disabled", true);
   });
 
     $("#net_settings_form").on("submit", function (e) {
@@ -2403,3 +2505,1182 @@ $("#quit").on("click", function () {
 ipcRenderer.on("click-element", (event, elementId) => {
   document.getElementById(elementId).click();
 });
+
+// ============================================
+// INVENTORY MANAGEMENT
+// ============================================
+
+let allSuppliers = [];
+
+// Load inventory view
+$("#inventoryBtn").on("click", function () {
+  $("#pos_view").hide();
+  $("#transactions_view").hide();
+  $("#inventory_view").show();
+  updateStatusBarPage("Inventory Management", "glyphicon-list-alt");
+  loadInventoryData();
+  loadSuppliers();
+});
+
+// Back to POS from inventory
+$("#pointofsale, #backToPosBtn").on("click", function () {
+  $("#inventory_view").hide();
+  $("#transactions_view").hide();
+  $("#pos_view").show();
+  updateStatusBarPage("Point of Sale", "glyphicon-shopping-cart");
+});
+
+$("#transactions").on("click", function () {
+  $("#inventory_view").hide();
+  $("#pos_view").hide();
+  $("#transactions_view").show();
+  updateStatusBarPage("Transactions", "glyphicon-credit-card");
+});
+
+// Update status bar with current page
+function updateStatusBarPage(pageName, iconClass) {
+  $("#status-page-name").text(pageName);
+  $("#status-page-icon").attr("class", "glyphicon " + iconClass);
+}
+
+// Load inventory data
+function loadInventoryData() {
+  $.get(api + "inventory/products", function (data) {
+    let totalProducts = data.length;
+    let inStock = 0;
+    let lowStock = 0;
+    let outOfStock = 0;
+
+    data.forEach(product => {
+      if (product.stock == 1) {
+        if (product.quantity <= 0) {
+          outOfStock++;
+        } else if (product.quantity <= (product.minStock || 10)) {
+          lowStock++;
+        } else {
+          inStock++;
+        }
+      } else {
+        inStock++; // Non-tracked stock counts as in-stock
+      }
+    });
+
+    // Update stats
+    $("#inv-total-products").text(totalProducts);
+    $("#inv-in-stock").text(inStock);
+    $("#inv-low-stock").text(lowStock);
+    $("#inv-out-stock").text(outOfStock);
+
+    // Populate category filter
+    let categories = [...new Set(data.map(p => p.category).filter(c => c))];
+    let categoryFilter = $("#inv-category-filter");
+    categoryFilter.html('<option value="">All Categories</option>');
+    
+    allCategories.forEach(cat => {
+      categoryFilter.append(`<option value="${cat._id}">${cat.name}</option>`);
+    });
+
+    // Render inventory table
+    renderInventoryTable(data);
+  });
+}
+
+// Render inventory table
+function renderInventoryTable(products) {
+  let tbody = $("#inventory-list");
+  tbody.empty();
+
+  if (products.length === 0) {
+    tbody.html('<tr><td colspan="13" class="text-center">No products found</td></tr>');
+    return;
+  }
+
+  products.forEach(product => {
+    let stockStatus = getInventoryStockStatus(product);
+    let expiryStatus = getExpiryStatus(product.expirationDate);
+    let productImg = product.img ? path.join(img_path, product.img) : default_item_img;
+    productImg = checkFileExists(productImg) ? productImg : default_item_img;
+    
+    let supplierName = "";
+    if (product.supplier_id && allSuppliers.length > 0) {
+      let supplier = allSuppliers.find(s => s._id === product.supplier_id);
+      supplierName = supplier ? supplier.name : "";
+    }
+
+    let row = `
+      <tr>
+        <td>${product._id}</td>
+        <td><img src="${productImg}" alt="${product.name}"></td>
+        <td>${validator.unescape(product.name || "")}</td>
+        <td>${product.barcode || product._id}</td>
+        <td>${getCategoryName(product.category)}</td>
+        <td>${supplierName}</td>
+        <td>${settings ? validator.unescape(settings.symbol) : ""}${moneyFormat(product.costPrice || 0)}</td>
+        <td>${settings ? validator.unescape(settings.symbol) : ""}${moneyFormat(product.price)}</td>
+        <td>${product.stock == 1 ? product.quantity : "N/A"}</td>
+        <td>${product.minStock || "-"}</td>
+        <td><span class="stock-badge ${stockStatus.class}">${stockStatus.text}</span></td>
+        <td><span class="${expiryStatus.class}">${product.expirationDate || "-"}</span></td>
+        <td>
+          <button class="btn btn-xs btn-info edit-product-btn" data-id="${product._id}" title="Edit">
+            <i class="fa fa-pencil"></i>
+          </button>
+          <button class="btn btn-xs btn-danger delete-product-btn" data-id="${product._id}" title="Delete">
+            <i class="fa fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+    tbody.append(row);
+  });
+}
+
+// Get inventory stock status
+function getInventoryStockStatus(product) {
+  if (product.stock != 1) {
+    return { text: "N/A", class: "" };
+  }
+  if (product.quantity <= 0) {
+    return { text: "Out of Stock", class: "stock-out" };
+  }
+  if (product.quantity <= (product.minStock || 10)) {
+    return { text: "Low Stock", class: "stock-low" };
+  }
+  return { text: "In Stock", class: "stock-in" };
+}
+
+// Get expiry status
+function getExpiryStatus(expirationDate) {
+  if (!expirationDate) {
+    return { class: "" };
+  }
+  if (isExpired(expirationDate)) {
+    return { class: "expired-badge" };
+  }
+  let days = daysToExpire(moment(expirationDate, DATE_FORMAT));
+  if (days <= 30) {
+    return { class: "text-warning" };
+  }
+  return { class: "" };
+}
+
+// Get category name by ID
+function getCategoryName(categoryId) {
+  if (!categoryId) return "-";
+  let category = allCategories.find(c => c._id == categoryId);
+  return category ? category.name : "-";
+}
+
+// Inventory filters
+$("#inv-search, #inv-category-filter, #inv-stock-filter, #inv-supplier-filter").on("change keyup", function () {
+  filterInventory();
+});
+
+function filterInventory() {
+  let searchTerm = $("#inv-search").val().toLowerCase();
+  let categoryFilter = $("#inv-category-filter").val();
+  let stockFilter = $("#inv-stock-filter").val();
+  let supplierFilter = $("#inv-supplier-filter").val();
+
+  $.get(api + "inventory/products", function (data) {
+    let filtered = data.filter(product => {
+      // Search filter
+      let matchesSearch = !searchTerm || 
+        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+        (product.barcode && product.barcode.toLowerCase().includes(searchTerm));
+
+      // Category filter
+      let matchesCategory = !categoryFilter || product.category == categoryFilter;
+
+      // Stock filter
+      let matchesStock = true;
+      if (stockFilter) {
+        let status = getInventoryStockStatus(product);
+        if (stockFilter === "in-stock") matchesStock = status.class === "stock-in";
+        else if (stockFilter === "low-stock") matchesStock = status.class === "stock-low";
+        else if (stockFilter === "out-of-stock") matchesStock = status.class === "stock-out";
+      }
+
+      // Supplier filter
+      let matchesSupplier = !supplierFilter || product.supplier_id == supplierFilter;
+
+      return matchesSearch && matchesCategory && matchesStock && matchesSupplier;
+    });
+
+    renderInventoryTable(filtered);
+  });
+}
+
+// Refresh inventory
+$("#refreshInventory").on("click", function () {
+  loadInventoryData();
+  notiflix.Notify.success("Inventory refreshed!");
+});
+
+// Export inventory (Professional Excel with styling)
+$("#exportInventory").on("click", function () {
+  $.get(api + "inventory/products", function (data) {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    
+    // Set workbook properties
+    workbook.creator = 'PharmaSpot';
+    workbook.created = new Date();
+    
+    const worksheet = workbook.addWorksheet('Inventory', {
+      properties: { tabColor: { argb: '1a365d' } },
+      views: [{ state: 'frozen', ySplit: 3 }]
+    });
+    
+    // Add company header
+    worksheet.mergeCells('A1:I1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = (settings.store || 'PharmaSpot') + ' - Inventory Report';
+    titleCell.font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1a365d' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(1).height = 35;
+    
+    // Add date row
+    worksheet.mergeCells('A2:I2');
+    const dateCell = worksheet.getCell('A2');
+    dateCell.value = 'Generated: ' + moment().format('MMMM DD, YYYY [at] HH:mm');
+    dateCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: '666666' } };
+    dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(2).height = 20;
+    
+    // Define columns with headers
+    worksheet.getRow(3).values = ['#', 'Product Name', 'Barcode', 'Category', 'Cost Price', 'Sell Price', 'Quantity', 'Min Stock', 'Expiry Date'];
+    
+    // Style header row
+    const headerRow = worksheet.getRow(3);
+    headerRow.height = 25;
+    headerRow.eachCell((cell, colNumber) => {
+      cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2c5282' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: '1a365d' } },
+        bottom: { style: 'thin', color: { argb: '1a365d' } },
+        left: { style: 'thin', color: { argb: '1a365d' } },
+        right: { style: 'thin', color: { argb: '1a365d' } }
+      };
+    });
+    
+    // Set column widths
+    worksheet.columns = [
+      { width: 6 },   // #
+      { width: 30 },  // Product Name
+      { width: 15 },  // Barcode
+      { width: 18 },  // Category
+      { width: 12 },  // Cost Price
+      { width: 12 },  // Sell Price
+      { width: 10 },  // Quantity
+      { width: 10 },  // Min Stock
+      { width: 14 }   // Expiry Date
+    ];
+    
+    // Add data rows
+    let rowIndex = 4;
+    let totalProducts = 0;
+    let totalQuantity = 0;
+    let lowStockCount = 0;
+    let expiredCount = 0;
+    
+    data.forEach((p, index) => {
+      totalProducts++;
+      totalQuantity += parseInt(p.quantity) || 0;
+      
+      const isLowStock = (p.quantity || 0) <= (p.minStock || 10);
+      const isExpired = moment(p.expirationDate, 'DD-MMM-YY').isBefore(moment());
+      const isExpiringSoon = !isExpired && moment(p.expirationDate, 'DD-MMM-YY').diff(moment(), 'days') <= 30;
+      
+      if (isLowStock) lowStockCount++;
+      if (isExpired) expiredCount++;
+      
+      const row = worksheet.addRow([
+        index + 1,
+        validator.unescape(p.name),
+        p.barcode || '-',
+        getCategoryName(p.category),
+        p.costPrice || 0,
+        p.price || 0,
+        p.quantity || 0,
+        p.minStock || '-',
+        p.expirationDate || '-'
+      ]);
+      
+      // Alternate row colors
+      const bgColor = index % 2 === 0 ? 'F7FAFC' : 'FFFFFF';
+      
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Arial', size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: colNumber <= 2 ? 'center' : (colNumber >= 5 && colNumber <= 8 ? 'right' : 'left') };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
+          left: { style: 'thin', color: { argb: 'E2E8F0' } },
+          right: { style: 'thin', color: { argb: 'E2E8F0' } }
+        };
+        
+        // Highlight low stock in orange
+        if (colNumber === 7 && isLowStock && !isExpired) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FED7AA' } };
+          cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'C05621' } };
+        }
+        
+        // Highlight expired in red
+        if (isExpired && colNumber === 9) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FED7D7' } };
+          cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'C53030' } };
+        }
+        
+        // Highlight expiring soon in yellow
+        if (isExpiringSoon && colNumber === 9) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEFCBF' } };
+          cell.font = { name: 'Arial', size: 10, color: { argb: '744210' } };
+        }
+      });
+      
+      // Format currency columns
+      row.getCell(5).numFmt = '#,##0.00';
+      row.getCell(6).numFmt = '#,##0.00';
+      
+      rowIndex++;
+    });
+    
+    // Add summary section
+    rowIndex++;
+    worksheet.mergeCells(`A${rowIndex}:I${rowIndex}`);
+    worksheet.getCell(`A${rowIndex}`).value = '';
+    rowIndex++;
+    
+    // Summary header
+    worksheet.mergeCells(`A${rowIndex}:C${rowIndex}`);
+    const summaryHeader = worksheet.getCell(`A${rowIndex}`);
+    summaryHeader.value = 'INVENTORY SUMMARY';
+    summaryHeader.font = { name: 'Arial', size: 12, bold: true, color: { argb: '1a365d' } };
+    summaryHeader.alignment = { horizontal: 'left' };
+    rowIndex++;
+    
+    // Summary data
+    const summaryData = [
+      ['Total Products:', totalProducts],
+      ['Total Quantity:', totalQuantity],
+      ['Low Stock Items:', lowStockCount],
+      ['Expired Items:', expiredCount]
+    ];
+    
+    summaryData.forEach(([label, value]) => {
+      worksheet.getCell(`A${rowIndex}`).value = label;
+      worksheet.getCell(`A${rowIndex}`).font = { name: 'Arial', size: 10, bold: true };
+      worksheet.getCell(`B${rowIndex}`).value = value;
+      worksheet.getCell(`B${rowIndex}`).font = { name: 'Arial', size: 10 };
+      if (label.includes('Low Stock')) {
+        worksheet.getCell(`B${rowIndex}`).font = { name: 'Arial', size: 10, color: { argb: 'C05621' } };
+      }
+      if (label.includes('Expired')) {
+        worksheet.getCell(`B${rowIndex}`).font = { name: 'Arial', size: 10, color: { argb: 'C53030' } };
+      }
+      rowIndex++;
+    });
+    
+    // Add legend
+    rowIndex++;
+    worksheet.mergeCells(`A${rowIndex}:C${rowIndex}`);
+    worksheet.getCell(`A${rowIndex}`).value = 'Legend:';
+    worksheet.getCell(`A${rowIndex}`).font = { name: 'Arial', size: 9, bold: true };
+    rowIndex++;
+    
+    const legendCell1 = worksheet.getCell(`A${rowIndex}`);
+    legendCell1.value = '  ● Low Stock';
+    legendCell1.font = { name: 'Arial', size: 9, color: { argb: 'C05621' } };
+    rowIndex++;
+    
+    const legendCell2 = worksheet.getCell(`A${rowIndex}`);
+    legendCell2.value = '  ● Expired';
+    legendCell2.font = { name: 'Arial', size: 9, color: { argb: 'C53030' } };
+    rowIndex++;
+    
+    const legendCell3 = worksheet.getCell(`A${rowIndex}`);
+    legendCell3.value = '  ● Expiring Soon (≤30 days)';
+    legendCell3.font = { name: 'Arial', size: 9, color: { argb: '744210' } };
+    
+    // Generate and save file
+    const filename = `PharmaSpot_Inventory_${moment().format("YYYY-MM-DD_HHmm")}.xlsx`;
+    const filePath = path.join(require('os').homedir(), 'Downloads', filename);
+    
+    workbook.xlsx.writeFile(filePath).then(() => {
+      notiflix.Report.success(
+        "Export Complete",
+        `Inventory exported successfully to:\n${filePath}`,
+        "Open Folder",
+        function() {
+          require('electron').shell.showItemInFolder(filePath);
+        }
+      );
+    }).catch(err => {
+      console.error("Export error:", err);
+      notiflix.Report.failure("Export Failed", "Could not export inventory. Please try again.", "Ok");
+    });
+  });
+});
+
+// Edit product from inventory
+$(document).on("click", ".edit-product-btn", function () {
+  let productId = $(this).data("id");
+  $.get(api + "inventory/product/" + productId, function (product) {
+    $("#newProduct").modal("show");
+    // Populate form - this uses existing product modal
+    $("#productId").val(product._id);
+    $("#name").val(validator.unescape(product.name));
+    $("#description").val(validator.unescape(product.description || ""));
+    $("#barcode").val(product.barcode);
+    $("#category").val(product.category);
+    $("#costPrice").val(product.costPrice || "");
+    $("#sell_price").val(product.price);
+    $("#quantity").val(product.quantity);
+    $("#minStock").val(product.minStock || "");
+    $("#expirationDate").val(product.expirationDate);
+    if (product.stock == 1) {
+      $("#stock").prop("checked", true);
+    }
+  });
+});
+
+// ============================================
+// SUPPLIERS MANAGEMENT
+// ============================================
+
+// Load suppliers
+function loadSuppliers() {
+  $.get(api + "suppliers/all", function (data) {
+    allSuppliers = data;
+    renderSuppliersTable(data);
+    
+    // Update supplier filter in inventory
+    let supplierFilter = $("#inv-supplier-filter");
+    supplierFilter.html('<option value="">All Suppliers</option>');
+    data.forEach(supplier => {
+      supplierFilter.append(`<option value="${supplier._id}">${supplier.name}</option>`);
+    });
+  }).fail(function() {
+    allSuppliers = [];
+  });
+}
+
+// Render suppliers table
+function renderSuppliersTable(suppliers) {
+  let tbody = $("#suppliers-list");
+  tbody.empty();
+
+  if (suppliers.length === 0) {
+    tbody.html('<tr><td colspan="7" class="text-center">No suppliers found. Click "Add Supplier" to add one.</td></tr>');
+    return;
+  }
+
+  suppliers.forEach(supplier => {
+    let row = `
+      <tr>
+        <td>${supplier._id}</td>
+        <td>${validator.unescape(supplier.name)}</td>
+        <td>${validator.unescape(supplier.contact_person || "-")}</td>
+        <td>${validator.unescape(supplier.email || "-")}</td>
+        <td>${validator.unescape(supplier.phone || "-")}</td>
+        <td>${validator.unescape(supplier.address || "-")}</td>
+        <td>
+          <button class="btn btn-xs btn-info edit-supplier-btn" data-id="${supplier._id}" title="Edit">
+            <i class="fa fa-pencil"></i>
+          </button>
+          <button class="btn btn-xs btn-danger delete-supplier-btn" data-id="${supplier._id}" data-name="${supplier.name}" title="Delete">
+            <i class="fa fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+    tbody.append(row);
+  });
+}
+
+// Add supplier button
+$("#addSupplierBtn").on("click", function () {
+  $("#supplierForm").get(0).reset();
+  $("#supplier_id").val("");
+  $("#supplierFormModalLabel").html('<i class="glyphicon glyphicon-briefcase"></i> Add Supplier');
+  $("#supplierFormModal").modal("show");
+});
+
+// Edit supplier
+$(document).on("click", ".edit-supplier-btn", function () {
+  let supplierId = $(this).data("id");
+  $.get(api + "suppliers/supplier/" + supplierId, function (supplier) {
+    $("#supplier_id").val(supplier._id);
+    $("#supplier_name").val(validator.unescape(supplier.name));
+    $("#supplier_contact_person").val(validator.unescape(supplier.contact_person || ""));
+    $("#supplier_email").val(validator.unescape(supplier.email || ""));
+    $("#supplier_phone").val(validator.unescape(supplier.phone || ""));
+    $("#supplier_address").val(validator.unescape(supplier.address || ""));
+    $("#supplier_notes").val(validator.unescape(supplier.notes || ""));
+    $("#supplierFormModalLabel").html('<i class="glyphicon glyphicon-briefcase"></i> Edit Supplier');
+    $("#supplierFormModal").modal("show");
+  });
+});
+
+// Save supplier
+$("#supplierForm").on("submit", function (e) {
+  e.preventDefault();
+  let formData = $(this).serializeObject();
+
+  $.ajax({
+    url: api + "suppliers/post",
+    type: "POST",
+    data: JSON.stringify(formData),
+    contentType: "application/json; charset=utf-8",
+    cache: false,
+    processData: false,
+    success: function (data) {
+      $("#supplierFormModal").modal("hide");
+      loadSuppliers();
+      notiflix.Notify.success(data.message || "Supplier saved successfully!");
+    },
+    error: function (jqXHR) {
+      notiflix.Report.failure(
+        jqXHR.responseJSON?.error || "Error",
+        jqXHR.responseJSON?.message || "An error occurred while saving the supplier.",
+        "Ok"
+      );
+    }
+  });
+});
+
+// Delete supplier
+$(document).on("click", ".delete-supplier-btn", function () {
+  let supplierId = $(this).data("id");
+  let supplierName = $(this).data("name");
+
+  notiflix.Confirm.show(
+    "Delete Supplier",
+    `Are you sure you want to delete "${supplierName}"?`,
+    "Delete",
+    "Cancel",
+    function () {
+      $.ajax({
+        url: api + "suppliers/delete/" + supplierId,
+        type: "DELETE",
+        success: function (data) {
+          loadSuppliers();
+          notiflix.Notify.success(data.message || "Supplier deleted!");
+        },
+        error: function (jqXHR) {
+          notiflix.Report.failure(
+            "Error",
+            jqXHR.responseJSON?.message || "Failed to delete supplier.",
+            "Ok"
+          );
+        }
+      });
+    }
+  );
+});
+
+// Search suppliers
+$("#supplier-search").on("keyup", function () {
+  let searchTerm = $(this).val().toLowerCase();
+  let filtered = allSuppliers.filter(s => 
+    s.name.toLowerCase().includes(searchTerm) ||
+    (s.contact_person && s.contact_person.toLowerCase().includes(searchTerm)) ||
+    (s.email && s.email.toLowerCase().includes(searchTerm))
+  );
+  renderSuppliersTable(filtered);
+});
+
+// Load suppliers when modal opens
+$("#suppliersModal").on("show.bs.modal", function () {
+  loadSuppliers();
+});
+
+// ============================================
+// NETWORK INFO (MAIN SERVER)
+// ============================================
+
+function showNetworkInfo() {
+  // Check if running as main server
+  if (platform && platform.app === "Network Point of Sale Server") {
+    $("#network-info-bar").show();
+    
+    // Get local IP addresses
+    const os = require('os');
+    const networkInterfaces = os.networkInterfaces();
+    let serverIP = "127.0.0.1";
+    
+    for (let ifname in networkInterfaces) {
+      for (let iface of networkInterfaces[ifname]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          serverIP = iface.address;
+          break;
+        }
+      }
+    }
+    
+    $("#server-ip").text(serverIP);
+    $("#server-port").text(port);
+    
+  } else if (platform && platform.app === "Network Point of Sale Terminal") {
+    // Show terminal badge instead
+    $(".network-badge").removeClass("server-badge").addClass("terminal-badge")
+      .html('<i class="glyphicon glyphicon-phone"></i> Terminal');
+    $(".network-info-item").eq(0).html(`<i class="glyphicon glyphicon-globe"></i> Server: <span>${platform.ip || "--"}</span>`);
+    $(".network-info-item").eq(1).html(`<i class="glyphicon glyphicon-transfer"></i> Till: <span>${platform.till || "--"}</span>`);
+    $(".network-info-item").eq(2).hide();
+    $("#network-info-bar").show();
+  }
+}
+
+// Call on page load after settings are loaded
+$(document).ready(function() {
+  setTimeout(function() {
+    showNetworkInfo();
+  }, 2000);
+  
+  // Report button click handler
+  $("#generateSalesReport").on("click", function() {
+    generateSalesReport();
+  });
+});
+
+// ============================================
+// DETAILED SALES REPORT GENERATION
+// ============================================
+
+async function generateSalesReport() {
+  const { jsPDF } = require('jspdf');
+  
+  // Helper function to draw tables manually
+  function drawTable(doc, startY, headers, rows, options = {}) {
+    const margin = options.margin || 15;
+    const startX = options.startX || margin;
+    const tableWidth = options.tableWidth || (doc.internal.pageSize.getWidth() - margin * 2);
+    const colWidths = options.colWidths || rows[0].map(() => tableWidth / rows[0].length);
+    const headerColor = options.headerColor || [44, 82, 130];
+    const rowHeight = options.rowHeight || 7;
+    const fontSize = options.fontSize || 8;
+    
+    let yPos = startY;
+    
+    // Draw header
+    doc.setFillColor(...headerColor);
+    doc.rect(startX, yPos, tableWidth, rowHeight, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', 'bold');
+    
+    let xPos = startX;
+    headers.forEach((header, i) => {
+      doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+      xPos += colWidths[i];
+    });
+    yPos += rowHeight;
+    
+    // Draw rows
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    rows.forEach((row, rowIndex) => {
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(248, 248, 248);
+        doc.rect(startX, yPos, tableWidth, rowHeight, 'F');
+      }
+      
+      xPos = startX;
+      row.forEach((cell, i) => {
+        const align = options.columnAlign && options.columnAlign[i] ? options.columnAlign[i] : 'left';
+        const cellX = align === 'center' ? xPos + colWidths[i] / 2 : 
+                     align === 'right' ? xPos + colWidths[i] - 2 : xPos + 2;
+        doc.text(String(cell), cellX, yPos + 5, { align: align });
+        xPos += colWidths[i];
+      });
+      yPos += rowHeight;
+    });
+    
+    return yPos;
+  }
+  
+  // Show loading
+  notiflix.Loading.circle('Generating detailed report...');
+  
+  try {
+    // Fetch all transaction data for the selected period
+    const startDate = moment(start).format("DD-MMM-YYYY");
+    const endDate = moment(end).format("DD-MMM-YYYY");
+    
+    // Get transactions data
+    const response = await fetch(`${api}all`);
+    const allTransactions = await response.json();
+    
+    // Filter by date range - dates are stored as YYYY-MM-DD HH:mm:ss
+    const filteredTransactions = allTransactions.filter(t => {
+      const tDate = moment(t.date, "YYYY-MM-DD HH:mm:ss");
+      return tDate.isValid() && tDate.isBetween(moment(start), moment(end), 'day', '[]') && t.status === 1;
+    });
+    
+    if (filteredTransactions.length === 0) {
+      notiflix.Loading.remove();
+      notiflix.Report.warning("No Data", "No transactions found for the selected period.", "Ok");
+      return;
+    }
+    
+    // Calculate analytics
+    const analytics = calculateAnalytics(filteredTransactions);
+    
+    // Generate PDF
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPos = margin;
+    
+    // Colors for PDF
+    const colors = {
+      primary: [26, 54, 93],
+      primaryLight: [44, 82, 130],
+      success: [56, 161, 105],
+      info: [49, 130, 206],
+      warning: [214, 158, 46],
+      danger: [229, 62, 62],
+      purple: [128, 90, 213],
+      orange: [221, 107, 32],
+      teal: [49, 151, 149]
+    };
+    
+    // =====================
+    // PAGE 1 - Dashboard Overview
+    // =====================
+    
+    // Header
+    doc.setFillColor(...colors.primary);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text(settings.store || 'PharmaSpot', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sales Analytics Report', pageWidth / 2, 23, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(`Period: ${startDate} to ${endDate}`, pageWidth / 2, 30, { align: 'center' });
+    
+    yPos = 45;
+    
+    // Summary Cards
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Executive Summary', margin, yPos);
+    yPos += 8;
+    
+    const boxWidth = (pageWidth - margin * 2 - 15) / 4;
+    const boxHeight = 25;
+    const summaryData = [
+      { label: 'Total Revenue', value: settings.symbol + moneyFormat(analytics.totalRevenue.toFixed(2)), color: colors.success },
+      { label: 'Transactions', value: analytics.totalTransactions.toString(), color: colors.info },
+      { label: 'Items Sold', value: analytics.totalItemsSold.toString(), color: colors.warning },
+      { label: 'Avg. Transaction', value: settings.symbol + moneyFormat(analytics.avgTransaction.toFixed(2)), color: colors.purple }
+    ];
+    
+    summaryData.forEach((item, i) => {
+      const x = margin + (boxWidth + 5) * i;
+      doc.setFillColor(...item.color);
+      doc.roundedRect(x, yPos, boxWidth, boxHeight, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(item.label, x + boxWidth / 2, yPos + 8, { align: 'center' });
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(item.value, x + boxWidth / 2, yPos + 18, { align: 'center' });
+    });
+    
+    yPos += boxHeight + 15;
+    
+    // Daily Sales Visual (Bar Chart using rectangles)
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Daily Sales Trend', margin, yPos);
+    yPos += 8;
+    
+    const dailyData = analytics.dailySales.slice(-10);
+    if (dailyData.length > 0) {
+      const chartWidth = pageWidth / 2 - margin - 10;
+      const chartHeight = 40;
+      const maxVal = Math.max(...dailyData.map(d => d.total), 1);
+      const barWidth = chartWidth / dailyData.length - 2;
+      
+      dailyData.forEach((d, i) => {
+        const barHeight = (d.total / maxVal) * (chartHeight - 10);
+        const x = margin + (i * (barWidth + 2));
+        const y = yPos + chartHeight - barHeight - 8;
+        
+        doc.setFillColor(...colors.info);
+        doc.rect(x, y, barWidth, barHeight, 'F');
+        
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text(d.date, x + barWidth / 2, yPos + chartHeight - 2, { align: 'center' });
+      });
+    }
+    
+    // Payment Methods Visual (Right side)
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payment Methods', pageWidth / 2 + 10, yPos - 8);
+    
+    const paymentColors = [colors.success, colors.info, colors.warning, colors.danger, colors.purple];
+    const paymentData = Object.entries(analytics.paymentMethods);
+    const totalPayments = paymentData.reduce((sum, [, c]) => sum + c, 0);
+    let payY = yPos;
+    
+    paymentData.forEach(([method, count], i) => {
+      const pct = ((count / totalPayments) * 100).toFixed(1);
+      const barW = (count / totalPayments) * 60;
+      
+      doc.setFillColor(...paymentColors[i % paymentColors.length]);
+      doc.rect(pageWidth / 2 + 10, payY, 4, 6, 'F');
+      
+      doc.setFontSize(8);
+      doc.setTextColor(60, 60, 60);
+      doc.text(method, pageWidth / 2 + 17, payY + 5);
+      
+      doc.setFillColor(...paymentColors[i % paymentColors.length]);
+      doc.rect(pageWidth / 2 + 45, payY + 1, barW, 4, 'F');
+      
+      doc.setFontSize(7);
+      doc.text(pct + '%', pageWidth / 2 + 47 + barW, payY + 5);
+      
+      payY += 9;
+    });
+    
+    yPos += 50;
+    
+    // Store the yPos for side-by-side sections
+    const sectionStartY = yPos;
+    
+    // Top Products Section (Left side)
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Best Selling Products', margin, yPos);
+    yPos += 8;
+    
+    const topProducts = analytics.topProducts.slice(0, 8);
+    const maxQty = Math.max(...topProducts.map(p => p.qty), 1);
+    const prodColors = [colors.success, colors.info, colors.warning, colors.danger, colors.purple, colors.orange, colors.teal, colors.primaryLight];
+    
+    topProducts.forEach((product, i) => {
+      const barWidth = (product.qty / maxQty) * 50;
+      const name = product.name.length > 20 ? product.name.substring(0, 20) + '...' : product.name;
+      
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 60);
+      doc.text(name, margin, yPos + 4);
+      
+      doc.setFillColor(...prodColors[i % prodColors.length]);
+      doc.rect(margin + 42, yPos, barWidth, 5, 'F');
+      
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      doc.text(product.qty.toString() + ' sold', margin + 44 + barWidth, yPos + 4);
+      
+      yPos += 8;
+    });
+    
+    // Sales by Category (Right side) - start at same Y position
+    let catY = sectionStartY;
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Sales by Category', pageWidth / 2 + 10, catY);
+    catY += 10;
+    
+    const categories = Object.entries(analytics.salesByCategory).slice(0, 8);
+    const totalCatSales = categories.reduce((sum, [, v]) => sum + v, 0) || 1;
+    
+    categories.forEach(([cat, sales], i) => {
+      const pct = ((sales / totalCatSales) * 100).toFixed(1);
+      const barW = (sales / totalCatSales) * 50;
+      const catName = cat.length > 18 ? cat.substring(0, 18) + '...' : cat;
+      
+      // Category color box
+      doc.setFillColor(...prodColors[i % prodColors.length]);
+      doc.rect(pageWidth / 2 + 10, catY - 3, 3, 6, 'F');
+      
+      // Category name
+      doc.setFontSize(8);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont('helvetica', 'normal');
+      doc.text(catName, pageWidth / 2 + 15, catY + 1);
+      
+      // Progress bar background
+      doc.setDrawColor(220, 220, 220);
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(pageWidth / 2 + 10, catY + 3, 70, 4, 1, 1, 'FD');
+      
+      // Progress bar fill
+      doc.setFillColor(...prodColors[i % prodColors.length]);
+      if (barW > 0) {
+        doc.roundedRect(pageWidth / 2 + 10, catY + 3, Math.min(barW, 70), 4, 1, 1, 'F');
+      }
+      
+      // Percentage and amount
+      doc.setFontSize(7);
+      doc.setTextColor(80, 80, 80);
+      doc.text(pct + '%', pageWidth / 2 + 82, catY + 6);
+      doc.setFontSize(6);
+      doc.text(settings.symbol + moneyFormat(sales.toFixed(2)), pageWidth / 2 + 15, catY + 6);
+      
+      catY += 11;
+    });
+    
+    // Move yPos to the max of both sections
+    yPos = Math.max(yPos, catY) + 15;
+    
+    // Summary Tables on Page 1
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cashier Performance', margin, yPos);
+    
+    const cashierData = Object.entries(analytics.cashierPerformance).map(([name, data]) => [
+      name,
+      data.count.toString(),
+      settings.symbol + moneyFormat(data.total.toFixed(2))
+    ]);
+    
+    drawTable(doc, yPos + 5, ['Cashier', 'Sales', 'Total'], cashierData, {
+      startX: margin,
+      tableWidth: pageWidth / 2 - margin - 10,
+      colWidths: [50, 20, 30],
+      fontSize: 7,
+      headerColor: colors.primaryLight,
+      columnAlign: ['left', 'center', 'right']
+    });
+    
+    // Payment Table on right
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payment Summary', pageWidth / 2 + 10, yPos);
+    
+    const payTableData = Object.entries(analytics.paymentMethodsDetail).map(([method, data]) => [
+      method,
+      data.count.toString(),
+      settings.symbol + moneyFormat(data.total.toFixed(2))
+    ]);
+    
+    drawTable(doc, yPos + 5, ['Method', 'Count', 'Amount'], payTableData, {
+      startX: pageWidth / 2 + 10,
+      tableWidth: pageWidth / 2 - margin - 10,
+      colWidths: [40, 20, 30],
+      fontSize: 7,
+      headerColor: colors.primaryLight,
+      columnAlign: ['left', 'center', 'right']
+    });
+    
+    // =====================
+    // PAGE 2 - Detailed Product Sales
+    // =====================
+    doc.addPage();
+    
+    // Header for page 2
+    doc.setFillColor(...colors.primary);
+    doc.rect(0, 0, pageWidth, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detailed Product Sales', pageWidth / 2, 13, { align: 'center' });
+    
+    yPos = 28;
+    
+    // Top Products Table
+    doc.setTextColor(...colors.primary);
+    doc.setFontSize(12);
+    doc.text('Top Selling Products', margin, yPos);
+    yPos += 5;
+    
+    const topProductsData = analytics.topProducts.slice(0, 25).map((p, i) => [
+      (i + 1).toString(),
+      p.name.substring(0, 40),
+      p.qty.toString(),
+      settings.symbol + moneyFormat(p.revenue.toFixed(2)),
+      settings.symbol + moneyFormat((p.revenue / p.qty).toFixed(2))
+    ]);
+    
+    drawTable(doc, yPos, ['#', 'Product Name', 'Qty', 'Revenue', 'Avg Price'], topProductsData, {
+      colWidths: [10, 80, 20, 35, 35],
+      fontSize: 8,
+      headerColor: colors.primaryLight,
+      columnAlign: ['center', 'left', 'center', 'right', 'right']
+    });
+    
+    // Footer on all pages
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Generated: ${moment().format('DD-MMM-YYYY HH:mm')} | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text('Powered by PharmaSpot', pageWidth / 2, pageHeight - 5, { align: 'center' });
+    }
+    
+    // Save the PDF using Blob method (more reliable)
+    const filename = `Sales_Report_${moment().format("YYYY-MM-DD_HHmm")}.pdf`;
+    const filePath = path.join(require('os').homedir(), 'Downloads', filename);
+    
+    // Get PDF as blob and convert to buffer
+    const pdfBlob = doc.output('blob');
+    const reader = new FileReader();
+    
+    reader.onload = function() {
+      const fs = require('fs');
+      const buffer = Buffer.from(new Uint8Array(reader.result));
+      fs.writeFileSync(filePath, buffer);
+      
+      notiflix.Loading.remove();
+      notiflix.Report.success(
+        "Report Generated",
+        `Sales report saved to Downloads folder`,
+        "Open Folder",
+        function() {
+          require('electron').shell.showItemInFolder(filePath);
+        }
+      );
+    };
+    
+    reader.onerror = function() {
+      // Fallback method
+      const fs = require('fs');
+      const pdfData = doc.output('arraybuffer');
+      fs.writeFileSync(filePath, Buffer.from(pdfData));
+      
+      notiflix.Loading.remove();
+      notiflix.Report.success(
+        "Report Generated",
+        `Sales report saved to Downloads folder`,
+        "Open Folder",
+        function() {
+          require('electron').shell.showItemInFolder(filePath);
+        }
+      );
+    };
+    
+    reader.readAsArrayBuffer(pdfBlob);
+    
+  } catch (error) {
+    console.error("Report generation error:", error);
+    notiflix.Loading.remove();
+    notiflix.Report.failure("Error", "Failed to generate report: " + error.message, "Ok");
+  }
+}
+
+function calculateAnalytics(transactions) {
+  const analytics = {
+    totalRevenue: 0,
+    totalTransactions: transactions.length,
+    totalItemsSold: 0,
+    avgTransaction: 0,
+    paymentMethods: {},
+    paymentMethodsDetail: {},
+    dailySales: [],
+    topProducts: [],
+    salesByCategory: {},
+    hourlySales: [],
+    cashierPerformance: {}
+  };
+  
+  const productSales = {};
+  const dailyData = {};
+  const hourlyData = {};
+  
+  // Initialize hourly data
+  for (let i = 0; i < 24; i++) {
+    hourlyData[i] = { hour: i, count: 0, total: 0 };
+  }
+  
+  transactions.forEach(t => {
+    const total = parseFloat(t.total) || 0;
+    analytics.totalRevenue += total;
+    
+    // Payment methods
+    const method = t.payment_type || 'Cash';
+    analytics.paymentMethods[method] = (analytics.paymentMethods[method] || 0) + 1;
+    if (!analytics.paymentMethodsDetail[method]) {
+      analytics.paymentMethodsDetail[method] = { count: 0, total: 0 };
+    }
+    analytics.paymentMethodsDetail[method].count++;
+    analytics.paymentMethodsDetail[method].total += total;
+    
+    // Daily sales - dates are stored as YYYY-MM-DD HH:mm:ss
+    const dateKey = moment(t.date, "YYYY-MM-DD HH:mm:ss").format("DD/MM");
+    if (!dailyData[dateKey]) {
+      dailyData[dateKey] = { date: dateKey, total: 0, count: 0 };
+    }
+    dailyData[dateKey].total += total;
+    dailyData[dateKey].count++;
+    
+    // Hourly sales
+    const hour = moment(t.date, "YYYY-MM-DD HH:mm:ss").hour();
+    hourlyData[hour].count++;
+    hourlyData[hour].total += total;
+    
+    // Cashier performance
+    const cashier = t.user || 'Unknown';
+    if (!analytics.cashierPerformance[cashier]) {
+      analytics.cashierPerformance[cashier] = { count: 0, total: 0 };
+    }
+    analytics.cashierPerformance[cashier].count++;
+    analytics.cashierPerformance[cashier].total += total;
+    
+    // Product sales
+    if (t.items && Array.isArray(t.items)) {
+      t.items.forEach(item => {
+        analytics.totalItemsSold += parseInt(item.qty || item.quantity) || 1;
+        const productId = item.id || item._id;
+        const price = parseFloat(item.price) || 0;
+        const qty = parseInt(item.qty || item.quantity) || 1;
+        const productName = item.product_name || item.name || 'Unknown Product';
+        
+        if (!productSales[productId]) {
+          productSales[productId] = {
+            id: productId,
+            name: productName,
+            qty: 0,
+            revenue: 0,
+            category: item.category || 'Uncategorized'
+          };
+        }
+        productSales[productId].qty += qty;
+        productSales[productId].revenue += price * qty;
+        
+        // Category sales
+        const categoryName = item.category ? (getCategoryName(item.category) || 'Uncategorized') : 'Uncategorized';
+        if (categoryName !== '-') {
+          analytics.salesByCategory[categoryName] = (analytics.salesByCategory[categoryName] || 0) + (price * qty);
+        }
+      });
+    }
+  });
+  
+  analytics.avgTransaction = analytics.totalRevenue / analytics.totalTransactions || 0;
+  
+  // Convert to arrays and sort
+  analytics.dailySales = Object.values(dailyData).slice(-14); // Last 14 days
+  analytics.topProducts = Object.values(productSales).sort((a, b) => b.qty - a.qty);
+  analytics.hourlySales = Object.values(hourlyData).filter(h => h.count > 0);
+  
+  // Sort category sales
+  const sortedCategories = Object.entries(analytics.salesByCategory)
+    .sort((a, b) => b[1] - a[1]);
+  analytics.salesByCategory = Object.fromEntries(sortedCategories);
+  
+  return analytics;
+}

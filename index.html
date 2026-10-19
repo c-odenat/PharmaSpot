@@ -3,11 +3,52 @@
 
 <head>
     <meta charset="UTF-8">
-    <title></title>
+    <title>PharmaSpot</title>
     <link href="assets/dist/css/bundle.min.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
+    <!-- Custom Title Bar -->
+    <div id="titlebar">
+        <div class="titlebar-drag">
+            <div class="titlebar-icon">
+                <img src="assets/images/favicon.png" alt="PharmaSpot" />
+            </div>
+            <span class="titlebar-title">PharmaSpot</span>
+        </div>
+        <div class="titlebar-controls">
+            <!-- Notification Bell -->
+            <div class="notification-center">
+                <button class="titlebar-btn notification-btn" id="notification-btn" title="Notifications">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                    </svg>
+                    <span class="notification-badge" id="notification-badge">0</span>
+                </button>
+                <div class="notification-panel" id="notification-panel">
+                    <div class="notification-header">
+                        <span>Notifications</span>
+                        <button class="clear-notifications-btn" id="clear-notifications" title="Clear All">
+                            <i class="glyphicon glyphicon-trash"></i>
+                        </button>
+                    </div>
+                    <div class="notification-list" id="notification-list">
+                        <div class="notification-empty">No notifications</div>
+                    </div>
+                </div>
+            </div>
+            <button class="titlebar-btn" id="minimize-btn" title="Minimize">
+                <svg width="12" height="12" viewBox="0 0 12 12"><rect fill="currentColor" width="10" height="1" x="1" y="6"></rect></svg>
+            </button>
+            <button class="titlebar-btn" id="maximize-btn" title="Maximize">
+                <svg width="12" height="12" viewBox="0 0 12 12"><rect stroke="currentColor" fill="none" width="9" height="9" x="1.5" y="1.5"></rect></svg>
+            </button>
+            <button class="titlebar-btn titlebar-close" id="close-btn" title="Close">
+                <svg width="12" height="12" viewBox="0 0 12 12"><polygon fill="currentColor" points="11 1.576 10.424 1 6 5.424 1.576 1 1 1.576 5.424 6 1 10.424 1.576 11 6 6.576 10.424 11 11 10.424 6.576 6"></polygon></svg>
+            </button>
+        </div>
+    </div>
+    
     <div class="splash loading">
         <img src="assets/images/logo.svg" />
         <h1 class="pull-right pt-3"><i class="fa fa-spinner fa-spin"></i> Please wait...</h1>
@@ -29,6 +70,25 @@
         </div>
     </div>
     <div id="main_app">
+        <!-- Network Info Bar for Main Server -->
+        <div id="network-info-bar" class="network-info-bar" style="display: none;">
+            <div class="container">
+                <div class="network-info-content">
+                    <span class="network-badge server-badge">
+                        <i class="glyphicon glyphicon-hdd"></i> Main Server
+                    </span>
+                    <span class="network-info-item" title="Server IP Address">
+                        <i class="glyphicon glyphicon-globe"></i> IP: <span id="server-ip">--</span>
+                    </span>
+                    <span class="network-info-item" title="Server Port">
+                        <i class="glyphicon glyphicon-transfer"></i> Port: <span id="server-port">--</span>
+                    </span>
+                    <span class="network-info-item" title="Connected Terminals">
+                        <i class="glyphicon glyphicon-phone"></i> Terminals: <span id="connected-terminals">0</span>
+                    </span>
+                </div>
+            </div>
+        </div>
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
@@ -49,6 +109,9 @@
                                 <i class="fa fa-plus"></i>
                             </button>
                         </div>
+                        <button id="inventoryBtn" type="button" class="btn btn-primary waves-effect waves-light p_six">
+                            <span class="btn-label"><i class="glyphicon glyphicon-list-alt"></i> </span> Inventory
+                        </button>
                         <button id="viewRefOrders" data-toggle="modal" data-target="#holdOrdersModal" type="button" class="btn btn-info waves-effect waves-light">
                             <span class="btn-label"><i class="fa fa-shopping-basket"></i> </span> Open Tabs
                         </button>
@@ -132,7 +195,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="input-group">
                                 <span class="input-group-addon" id="date-addon">Date</span>
                                 <div id="reportrange">
@@ -140,6 +203,11 @@
                                     <span></span>&nbsp;<i class="fa fa-caret-down"></i>
                                 </div>
                             </div>
+                        </div>
+                        <div class="col-md-1">
+                            <button id="generateSalesReport" class="btn btn-primary btn-block" title="Generate Detailed Sales Report">
+                                <i class="fa fa-pie-chart"></i> Report
+                            </button>
                         </div>
                     </div>
                     <div class="row">
@@ -233,39 +301,46 @@
                                     </div>
                                 </div>
                             </div>
-                            <hr>
-                            <div class="m-t-5">
+                            <!-- Cart Footer -->
+                            <div class="cart-footer">
                                 <div class="row">
-                                    <div class="col-md-3">Total Item(s)</div>
-                                    <div class="col-md-3">: <span id="total">0</span>
+                                    <div class="col-md-6">
+                                        <div class="row m-b-5">
+                                            <div class="col-xs-6"><strong>Total Items:</strong></div>
+                                            <div class="col-xs-6"><span id="total">0</span></div>
+                                        </div>
+                                        <div class="row m-b-5">
+                                            <div class="col-xs-6"><strong>Subtotal:</strong></div>
+                                            <div class="col-xs-6"><span id="price_curr"></span><span id="price">0.0</span></div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-xs-6"><strong>Discount:</strong></div>
+                                            <div class="col-xs-6">
+                                                <input class="form-control input-sm" type="number" id="inputDiscount" min="0" placeholder="0.00" oninput="$(this).calculateCart();" style="max-width: 100px;">
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="col-md-3">Price :</div>
-                                    <div class="col-md-3">: <span id="price">0.0</span></div>
+                                    <div class="col-md-6 text-right">
+                                        <div class="m-b-5"><small>Gross Price (inc <span id="taxInfo"></span>% Tax)</small></div>
+                                        <h2 id="gross_price"><span id="payment_curr"></span>0.00</h2>
+                                    </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-3">Discount</div>
-                                    <div class="col-md-3"><input class="form-control" type="number" id="inputDiscount" minimum="0" placeholder="amount" oninput="$(this).calculateCart();"></div>
-                                    <div class="col-md-3">Gross Price (inc <span id="taxInfo"></span>% Tax)</div>
-                                    <div class="col-md-3">
-                                        <h3 id="gross_price">0.00</h3>
-                                    </div>
+                                <hr style="margin: 10px 0;">
+                                <div class="button-list text-right">
+                                    <button onclick="$(this).submitDueOrder(3);" type="button" class="btn btn-info waves-effect waves-light" title="Print">
+                                        <i class="fa fa-print"></i>
+                                    </button>
+                                    <button onclick="$(this).cancelOrder()" type="button" class="btn btn-danger waves-effect waves-light">
+                                        <i class="fa fa-ban"></i> Cancel
+                                    </button>
+                                    <button type="button" id="hold" class="btn btn-info waves-effect waves-light">
+                                        <i class="fa fa-hand-paper-o"></i> Hold
+                                    </button>
+                                    <button type="button" id="payButton" class="btn btn-success waves-effect waves-light">
+                                        <i class="fa fa-money"></i> Pay
+                                    </button>
                                 </div>
                             </div>
-                            <div class="button-list pull-right">
-                                <button onclick="$(this).submitDueOrder(3);" type="button" class="btn btn-info waves-effect waves-light">
-                                    <i class="fa fa-print"></i>
-                                </button>
-                                <button onclick="$(this).cancelOrder()" type="button" class="btn btn-danger waves-effect waves-light">
-                                    <span class="btn-label"><i class="fa fa-ban"></i></span>Cancel
-                                </button>
-                                <button type="button" id="hold" class="btn btn-info waves-effect waves-light">
-                                    <span class="btn-label"><i class="fa fa-hand-paper-o"></i></span>Hold
-                                </button>
-                                <button type="button" id="payButton" class="btn btn-success waves-effect waves-light">
-                                    <span class="btn-label"><i class="fa fa-money"></i></span>Pay
-                                </button>
-                            </div>
-                            <hr>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -281,6 +356,113 @@
                             </div>
                             <hr>
                             <div class="row" id="parent">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Inventory View -->
+            <div id="inventory_view">
+                <div class="container">
+                    <div class="row m-t-20">
+                        <div class="col-md-12">
+                            <div class="card-box">
+                                <div class="row m-b-20">
+                                    <div class="col-md-6">
+                                        <button id="backToPosBtn" type="button" class="btn btn-default waves-effect waves-light m-r-10">
+                                            <i class="glyphicon glyphicon-arrow-left"></i> Back to POS
+                                        </button>
+                                        <span class="page-title"><i class="glyphicon glyphicon-list-alt"></i> Inventory Management</span>
+                                    </div>
+                                    <div class="col-md-6 text-right">
+                                        <button id="suppliersBtn" data-toggle="modal" data-target="#suppliersModal" type="button" class="btn btn-primary waves-effect waves-light">
+                                            <span class="btn-label"><i class="glyphicon glyphicon-briefcase"></i></span> Suppliers
+                                        </button>
+                                        <button id="exportInventory" type="button" class="btn btn-success waves-effect waves-light">
+                                            <span class="btn-label"><i class="glyphicon glyphicon-download-alt"></i></span> Export
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Inventory Stats -->
+                                <div class="row text-center m-b-20" id="inventory-stats">
+                                    <div class="col-md-3">
+                                        <div class="inventory-stat-box bg-primary">
+                                            <h5>TOTAL PRODUCTS</h5>
+                                            <span id="inv-total-products" class="counter-value">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="inventory-stat-box bg-success">
+                                            <h5>IN STOCK</h5>
+                                            <span id="inv-in-stock" class="counter-value">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="inventory-stat-box bg-warning">
+                                            <h5>LOW STOCK</h5>
+                                            <span id="inv-low-stock" class="counter-value">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="inventory-stat-box bg-danger">
+                                            <h5>OUT OF STOCK</h5>
+                                            <span id="inv-out-stock" class="counter-value">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Filters -->
+                                <div class="row m-b-20 bg-white p-t-10 p-b-10">
+                                    <div class="col-md-3">
+                                        <input type="text" id="inv-search" class="form-control" placeholder="Search products...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select id="inv-category-filter" class="form-control">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select id="inv-stock-filter" class="form-control">
+                                            <option value="">All Stock Levels</option>
+                                            <option value="in-stock">In Stock</option>
+                                            <option value="low-stock">Low Stock</option>
+                                            <option value="out-of-stock">Out of Stock</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select id="inv-supplier-filter" class="form-control">
+                                            <option value="">All Suppliers</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 text-right">
+                                        <button id="refreshInventory" class="btn btn-info">
+                                            <i class="glyphicon glyphicon-refresh"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Inventory Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered" id="inventoryTable">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Image</th>
+                                                <th>Product Name</th>
+                                                <th>SKU/Barcode</th>
+                                                <th>Category</th>
+                                                <th>Supplier</th>
+                                                <th>Cost Price</th>
+                                                <th>Sell Price</th>
+                                                <th>Quantity</th>
+                                                <th>Min Stock</th>
+                                                <th>Status</th>
+                                                <th>Expiry Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inventory-list">
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -369,7 +551,7 @@
                                     <a href="javascript:void(0)" data-payment-method="Cash" data-payment-type="1" class="list-group-item active">
                                         Cash
                                     </a>
-                                    <a href="javascript:void(0)" data-payment-method="Card" data-payment-type="3" class="list-group-item">Card</a>
+                                    <a href="javascript:void(0)" data-payment-method="Mobile Money" data-payment-type="3" class="list-group-item">Mobile Money</a>
                                 </div>
                             </div>
                             <div class="col-md-8">
@@ -444,8 +626,8 @@
                                 </div>
                                 <br>
                                 <div class="input-group" id="cardInfo">
-                                    <span class="input-group-addon" id="basic-addon3">Card Info </span>
-                                    <input type="text" class="form-control" id="paymentInfo" aria-describedby="basic-addon3">
+                                    <span class="input-group-addon" id="basic-addon3">Mobile Money Info </span>
+                                    <input type="text" class="form-control" id="paymentInfo" placeholder="Phone number or transaction ID" aria-describedby="basic-addon3">
                                 </div>
                             </div>
                         </div>
@@ -514,6 +696,12 @@
                                 <select name="category" class="form-control" id="category"></select>
                             </div>
                             <div class="form-group">
+                                <label for="product_supplier">Supplier</label>
+                                <select name="supplier_id" class="form-control" id="product_supplier">
+                                    <option value="">Select Supplier</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label for="productName">Product Name</label>
                                 <input type="text" required="required" name="name" parsley-trigger="change" placeholder="Enter a product name" class="form-control" id="productName">
                             </div>
@@ -521,21 +709,37 @@
                                 <label for="barcode">BarCode</label>
                                 <input type="text" required="required" name="barcode" parsley-trigger="change" placeholder="Enter product barcode" class="form-control number-input" id="barcode">
                             </div>
-                            <div class="form-group">
-                                <label for="product_price">Price</label>
-                                <input type="text" required="required" name="price" placeholder="Price" class="form-control number-input" id="product_price">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="cost_price">Cost Price</label>
+                                        <input type="text" name="costPrice" placeholder="Cost price" class="form-control number-input" id="cost_price">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="product_price">Sell Price</label>
+                                        <input type="text" required="required" name="price" placeholder="Sell price" class="form-control number-input" id="product_price">
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="expirationDate">Expiry Date</label>
                                 <input type="text" name="expirationDate" parsley-trigger="change" placeholder="dd/mm/yyyy" class="form-control" id="expirationDate" readonly>
                             </div>
-                            <div class="form-group">
-                                <label for="quantity">Stock</label>
-                                <input type="number" name="quantity" placeholder="Available stock" class="form-control" id="quantity" min="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="quantity">Minimum Stock</label>
-                                <input type="number" name="minStock" placeholder="Minimum Stock" class="form-control" id="minStock" min="1">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="quantity">Stock</label>
+                                        <input type="number" name="quantity" placeholder="Available stock" class="form-control" id="quantity" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="minStock">Minimum Stock</label>
+                                        <input type="number" name="minStock" placeholder="Min Stock" class="form-control" id="minStock" min="1">
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label><input type="checkbox" name="stock" id="stock"> Disable stock check </label>
@@ -753,6 +957,97 @@
                 </div>
             </div>
         </div>
+        <!-- Suppliers Modal -->
+        <div id="suppliersModal" class="modal fade bs-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="suppliersModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                        <h4 class="modal-title" id="suppliersModalLabel"><i class="glyphicon glyphicon-briefcase"></i> Suppliers Management</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row m-b-15">
+                            <div class="col-md-6">
+                                <input type="text" id="supplier-search" class="form-control" placeholder="Search suppliers...">
+                            </div>
+                            <div class="col-md-6 text-right">
+                                <button id="addSupplierBtn" class="btn btn-success waves-effect waves-light">
+                                    <i class="fa fa-plus"></i> Add Supplier
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered" id="suppliersTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Company Name</th>
+                                        <th>Contact Person</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Address</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliers-list">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Add/Edit Supplier Modal -->
+        <div id="supplierFormModal" class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="supplierFormModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                        <h4 class="modal-title" id="supplierFormModalLabel"><i class="glyphicon glyphicon-briefcase"></i> Add Supplier</h4>
+                    </div>
+                    <div class="modal-body">
+                        <form id="supplierForm">
+                            <input type="hidden" name="_id" id="supplier_id">
+                            <div class="form-group">
+                                <label for="supplier_name">Company Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" id="supplier_name" class="form-control" placeholder="Enter company name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier_contact_person">Contact Person</label>
+                                <input type="text" name="contact_person" id="supplier_contact_person" class="form-control" placeholder="Enter contact person name">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="supplier_email">Email</label>
+                                        <input type="email" name="email" id="supplier_email" class="form-control" placeholder="email@example.com">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="supplier_phone">Phone</label>
+                                        <input type="text" name="phone" id="supplier_phone" class="form-control" placeholder="Enter phone number">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier_address">Address</label>
+                                <textarea name="address" id="supplier_address" class="form-control" rows="2" placeholder="Enter address"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier_notes">Notes</label>
+                                <textarea name="notes" id="supplier_notes" class="form-control" rows="2" placeholder="Additional notes"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-success btn-block waves-effect waves-light">
+                                    <i class="fa fa-save"></i> Save Supplier
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div id="settingsModal" class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-md">
                 <div class="modal-content">
@@ -860,6 +1155,19 @@
                                 <div class="form-group">
                                     <input id="save_settings" type="submit" class="btn btn-success btn-block waves-effect waves-light" value="Save Settings">
                                 </div>
+                                
+                                <!-- Danger Zone -->
+                                <hr style="border-color: #e2e8f0; margin: 20px 0;">
+                                <div class="danger-zone">
+                                    <h5 class="text-danger"><i class="glyphicon glyphicon-warning-sign"></i> Danger Zone</h5>
+                                    <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">
+                                        This will permanently delete all products, transactions, customers, categories, and suppliers. 
+                                        Settings and user accounts will be preserved.
+                                    </p>
+                                    <button type="button" id="clearAllDataBtn" class="btn btn-danger waves-effect waves-light">
+                                        <i class="glyphicon glyphicon-trash"></i> Clear All Data & Start Fresh
+                                    </button>
+                                </div>
                             </div>
                             </form>
                         </div>
@@ -867,8 +1175,266 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Clear Data Confirmation Modal -->
+        <div id="clearDataModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true" style="color: white;">×</button>
+                        <h4 class="modal-title text-white"><i class="glyphicon glyphicon-warning-sign"></i> Confirm Data Clear</h4>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div style="font-size: 48px; color: #c53030; margin-bottom: 15px;">
+                            <i class="glyphicon glyphicon-trash"></i>
+                        </div>
+                        <h4>Are you absolutely sure?</h4>
+                        <p class="text-muted">This action <strong>cannot be undone</strong>. This will permanently delete:</p>
+                        <ul class="text-left" style="color: #718096; font-size: 13px;">
+                            <li>All products and inventory</li>
+                            <li>All transactions history</li>
+                            <li>All customers</li>
+                            <li>All categories</li>
+                            <li>All suppliers</li>
+                            <li>All product images</li>
+                        </ul>
+                        <div class="form-group m-t-20">
+                            <label style="font-size: 12px;">Type <strong>DELETE</strong> to confirm:</label>
+                            <input type="text" id="clearDataConfirmInput" class="form-control text-center" placeholder="Type DELETE here" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                        <button type="button" id="confirmClearDataBtn" class="btn btn-danger" disabled>
+                            <i class="glyphicon glyphicon-trash"></i> Clear Everything
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-bar-left">
+            <div class="status-bar-item" id="status-mode">
+                <i class="glyphicon glyphicon-hdd"></i>
+                <span id="status-mode-text">Standalone</span>
+            </div>
+            <div class="status-bar-item">
+                <i class="glyphicon glyphicon-heart"></i>
+                <span>Powered by PharmaSpot</span>
+            </div>
+        </div>
+        <div class="status-bar-center">
+            <div class="status-bar-item highlight">
+                <i class="glyphicon glyphicon-shopping-cart" id="status-page-icon"></i>
+                <span id="status-page-name">Point of Sale</span>
+            </div>
+        </div>
+        <div class="status-bar-right">
+            <div class="status-bar-item" id="status-user">
+                <i class="glyphicon glyphicon-user"></i>
+                <span>Login: <span id="status-username">--</span></span>
+            </div>
+            <div class="status-bar-item" id="status-time">
+                <i class="glyphicon glyphicon-time"></i>
+                <span id="status-clock">--:--</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Toast Container -->
+    <div class="notification-toast-container" id="notification-toast-container"></div>
+    
     <script src="assets/dist/js/bundle.min.js"></script>
+    <script>
+        // Notification Manager
+        const NotificationManager = {
+            notifications: [],
+            shownNotifications: new Set(), // Track notifications that have been shown
+            
+            init: function() {
+                // Toggle panel on bell click
+                document.getElementById('notification-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.togglePanel();
+                });
+                
+                // Close panel when clicking outside
+                document.addEventListener('click', (e) => {
+                    const panel = document.getElementById('notification-panel');
+                    const btn = document.getElementById('notification-btn');
+                    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+                        panel.classList.remove('show');
+                    }
+                });
+                
+                // Clear all notifications
+                document.getElementById('clear-notifications').addEventListener('click', () => {
+                    this.clearAll();
+                });
+            },
+            
+            togglePanel: function() {
+                const panel = document.getElementById('notification-panel');
+                panel.classList.toggle('show');
+            },
+            
+            add: function(type, message, id = null) {
+                // Create a unique ID if not provided
+                const notificationId = id || `${type}_${message.substring(0, 20)}`;
+                
+                // Check if this notification was already shown in this session
+                if (this.shownNotifications.has(notificationId)) {
+                    return; // Don't show duplicate
+                }
+                
+                this.shownNotifications.add(notificationId);
+                
+                const notification = {
+                    id: Date.now(),
+                    type: type,
+                    message: message,
+                    time: new Date()
+                };
+                
+                this.notifications.unshift(notification);
+                
+                // Keep only last 50 notifications
+                if (this.notifications.length > 50) {
+                    this.notifications.pop();
+                }
+                
+                this.updateBadge();
+                this.renderList();
+                this.showToast(type, message);
+            },
+            
+            showToast: function(type, message) {
+                const container = document.getElementById('notification-toast-container');
+                const toast = document.createElement('div');
+                toast.className = `notification-toast ${type}`;
+                
+                let icon = 'info-sign';
+                if (type === 'warning') icon = 'warning-sign';
+                if (type === 'danger') icon = 'exclamation-sign';
+                if (type === 'success') icon = 'ok-sign';
+                
+                toast.innerHTML = `
+                    <span class="toast-icon"><i class="glyphicon glyphicon-${icon}"></i></span>
+                    <span class="toast-message">${message}</span>
+                `;
+                
+                container.appendChild(toast);
+                
+                // Auto remove after 4 seconds
+                setTimeout(() => {
+                    toast.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 4000);
+            },
+            
+            updateBadge: function() {
+                const badge = document.getElementById('notification-badge');
+                const count = this.notifications.length;
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.toggle('hidden', count === 0);
+            },
+            
+            renderList: function() {
+                const list = document.getElementById('notification-list');
+                
+                if (this.notifications.length === 0) {
+                    list.innerHTML = '<div class="notification-empty">No notifications</div>';
+                    return;
+                }
+                
+                list.innerHTML = this.notifications.map(n => {
+                    let icon = 'info-sign';
+                    if (n.type === 'warning') icon = 'warning-sign';
+                    if (n.type === 'danger') icon = 'exclamation-sign';
+                    if (n.type === 'success') icon = 'ok-sign';
+                    
+                    const timeAgo = this.timeAgo(n.time);
+                    
+                    return `
+                        <div class="notification-item">
+                            <div class="notification-icon ${n.type}">
+                                <i class="glyphicon glyphicon-${icon}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-message">${n.message}</div>
+                                <div class="notification-time">${timeAgo}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            timeAgo: function(date) {
+                const seconds = Math.floor((new Date() - date) / 1000);
+                if (seconds < 60) return 'Just now';
+                const minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return `${minutes}m ago`;
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return `${hours}h ago`;
+                return `${Math.floor(hours / 24)}d ago`;
+            },
+            
+            clearAll: function() {
+                this.notifications = [];
+                this.updateBadge();
+                this.renderList();
+            },
+            
+            // Reset shown notifications (call when products are refreshed)
+            resetShown: function() {
+                this.shownNotifications.clear();
+            }
+        };
+        
+        // Initialize notification manager
+        NotificationManager.init();
+        
+        // Make it globally accessible
+        window.NotificationManager = NotificationManager;
+        
+        // Title bar window controls
+        const { ipcRenderer } = require('electron');
+        const remote = require('@electron/remote');
+        
+        document.getElementById('minimize-btn').addEventListener('click', () => {
+            remote.getCurrentWindow().minimize();
+        });
+        
+        document.getElementById('maximize-btn').addEventListener('click', () => {
+            const win = remote.getCurrentWindow();
+            if (win.isMaximized()) {
+                win.unmaximize();
+            } else {
+                win.maximize();
+            }
+        });
+        
+        document.getElementById('close-btn').addEventListener('click', () => {
+            remote.getCurrentWindow().close();
+        });
+        
+        // Status bar clock
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('status-clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
 </body>
 
 </html>
